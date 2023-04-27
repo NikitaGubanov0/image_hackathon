@@ -10,6 +10,7 @@ from os import listdir
 from utils.XYZ_to_SRGB import XYZ_TO_SRGB
 import pickle
 import warnings
+import cv2
 
 class DenoNet(nn.Module):
     def __init__(self):
@@ -80,6 +81,17 @@ class ImagePipeline:
             sm_xyz = self.demo(sm_xyz, pattern=self.pattern)
             sm_xyz = np.clip(sm_xyz, 0., 1.)
             test = sm_xyz
+
+            # добавляем шаг баланса белого
+            sm_rgb = cv2.cvtColor((sm_xyz * 255).astype(np.uint8), cv2.COLOR_BGR2RGB)
+            sm_rgb = cv2.cvtColor(sm_rgb, cv2.COLOR_RGB2LAB)
+            avg_a = np.average(sm_rgb[:, :, 1])
+            avg_b = np.average(sm_rgb[:, :, 2])
+            sm_rgb[:, :, 1] = sm_rgb[:, :, 1] - ((avg_a - 128) * (sm_rgb[:, :, 0] / 255.0) * 1.1)
+            sm_rgb[:, :, 2] = sm_rgb[:, :, 2] - ((avg_b - 128) * (sm_rgb[:, :, 0] / 255.0) * 1.1)
+            sm_rgb = cv2.cvtColor(sm_rgb, cv2.COLOR_LAB2RGB)
+            sm_xyz = sm_rgb / 255.
+
             self.model.eval()
             device = torch.device('cuda')
             pred = self.model(torch.permute(torch.from_numpy(test.astype('float32')), (2, 0, 1)).to(device).unsqueeze(0))
@@ -99,7 +111,7 @@ class ImagePipeline:
             gt.save(self.output_path + '/ground_truth/' + f"{i}.png")
             print(f'Successfully saved {i}!')
         return len(self.sample_paths)
-
+    
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Evaluate the quality of the predicted image.')
     parser.add_argument(
