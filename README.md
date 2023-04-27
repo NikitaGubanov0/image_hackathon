@@ -1,1 +1,6 @@
-# image_hackathon
+Чтобы запустить:
+
+Сделайте клон репы или скачайте архив зип этого репозитория (включая папку utils), затем запустите main.py:
+
+``` python3 main.py <inputdir> <outputdir> ```
+Это создаст две папки в outputdir: /ground_truth и /predicted с соответствующими изображениями в формате .png
